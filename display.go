@@ -1,18 +1,13 @@
 package main
 
 import (
-    "fmt"
     "github.com/veandco/go-sdl2/sdl"
     "time"
 )
 
 const (
     MAGNIFICATION = 8
-    SCREENWIDTH = 64
-    SCREENHEIGHT = 32
 )
-
-var display [SCREENWIDTH][SCREENHEIGHT]uint8
 
 var window *sdl.Window
 var surface, pixelSurface *sdl.Surface
@@ -46,7 +41,7 @@ func redrawDisplay() {
 
     for x := 0; x < SCREENWIDTH; x++ {
         for y := 0; y < SCREENHEIGHT; y++ {
-            if display[x][y] == 1 {
+            if pixmap[x][y] == 1 {
                 pixelRect.X = int32(x * MAGNIFICATION)
                 pixelRect.Y = int32(y * MAGNIFICATION)
                 pixelSurface.Blit(nil, surface, pixelRect)

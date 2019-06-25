@@ -3,7 +3,6 @@ package main
 // add package description
 
 import (
-    "bufio"
     "fmt"
     "os"
 )
@@ -16,18 +15,7 @@ func main() {
     program := os.Args[1]
 
     go runDisplay()
-	resetMachine()
+    initializeMachine()
     loadProgram(program)
-    printMachineState()
-    printDisplay()
-
-    buf := bufio.NewReader(os.Stdin)
-    for {
-        buf.ReadBytes('\n')
-        fmt.Println("----------------")
-        printInstruction(state.pc)
-        stepMachine()
-        printMachineState()
-        printDisplay()
-    }
+    runCLI()
 }

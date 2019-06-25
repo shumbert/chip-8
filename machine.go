@@ -18,10 +18,12 @@ import (
 // type byte is synonymous to uint8
 // bytes package
 
-// TODO: rename const to uppercase
 const (
-    memFonts = 0x000
-    memProgramStart = 0x200
+    MEMFONTS = 0x000
+    MEMPROGRAMSTART = 0x200
+    MEMEND = 0x1000
+    SCREENWIDTH = 64
+    SCREENHEIGHT = 32
 )
 
 type opcode int
@@ -80,6 +82,7 @@ type registers struct {
 	pc uint16   // Program Counter
 	sp byte     // Stack Pointer
 }
+var pixmap [SCREENWIDTH][SCREENHEIGHT]uint8
 var memory [4096]byte
 var stack [16]uint16
 var state registers
@@ -231,6 +234,10 @@ func getInstruction(address uint16) uint16 {
 
 
 func loadProgram(program string) {
+    for i := MEMPROGRAMSTART; i < MEMEND; i++ {
+        memory[i] = 0
+    }
+
     data, err := ioutil.ReadFile(program)
     if err != nil {
 	    log.Fatal(err)
@@ -238,7 +245,20 @@ func loadProgram(program string) {
 
     // TODO: check if program is too big
     for i, v := range data {
-        memory[memProgramStart + i] = v
+        memory[MEMPROGRAMSTART + i] = v
+    }
+}
+
+func runMachine() {
+    for {
+		// run loop at 120hz
+		// every other iteration decrement timers
+		// every iteration: calculate time ellapsed and compute number of instructions which should be run
+        // So it's much better to run our loop at much lower speed (100Hz in my case), calculating time between two loop cycles, then based on target frequency calculate number of operations that should be performed and perform them at once.
+        // When you are writing emulator, you have original CPU speed as a reference in most cases, but since CHIP-8 is interpreted language, speed varies based on device program was designed for. By my observations best universal speed for CHIP-8 programs is 500Hz and for SuperCHIP it's 1000hz, but you have to give user ability to change it so their experience is as good as possible. Also don't forget that delay and sound timers should always tick down at 60Hz, no matter how fast emulator is running.<Paste>
+
+
+        stepMachine()
     }
 }
 
@@ -253,7 +273,7 @@ func stepMachine() {
     case instruction.op == cls:
         for x := 0; x < 64; x++ {
             for y := 0; y < 32; y++ {
-                display[x][y] = 0
+                pixmap[x][y] = 0
             }
         }
 
@@ -371,7 +391,7 @@ func stepMachine() {
                 for i := uint16(0); i < 8; i++ {
                     x := (uint16(state.v[instruction.x]) + i)
                     if x < SCREENWIDTH {
-                        p := &display[x][y]
+                        p := &pixmap[x][y]
                         n := (memory[state.i + j] >> (8 - (i + 1))) & 0x1
 
                         old := *p
@@ -439,23 +459,23 @@ func stepMachine() {
 	}
 }
 
-func resetMachine() {
+func initializeMachine() {
+    resetRegisters()
+
+    for i, v := range fonts {
+        memory[MEMFONTS + i] = v
+    }
+
+    rand.Seed(time.Now().UnixNano())
+}
+
+func resetRegisters() {
     for i, _ := range state.v {
         state.v[i] = 0
     }
 	state.i = 0
 	state.dt = 0
 	state.st = 0
-	state.pc = memProgramStart
+	state.pc = MEMPROGRAMSTART
     state.sp = 16
-
-    // TODO: no need to reassign the same memory slots twice
-    for i, _ := range memory {
-        memory[i] = 0
-    }
-    for i, v := range fonts {
-        memory[memFonts + i] = v
-    }
-
-    rand.Seed(time.Now().UnixNano())
 }

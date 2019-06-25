@@ -1,16 +1,114 @@
 package main
 
 import (
+    "bufio"
     "fmt"
+    "io"
+    "os"
+    "strconv"
+    "strings"
 )
 
-func printDisplay() {
+const (
+    PROMPT = "chip> "
+)
+
+func cliAddBreakpoint() {
+    fmt.Println("cliAddBreakpoint")
+}
+
+func cliClearBreakpoints() {
+    fmt.Println("cliClearBreakpoints")
+}
+
+func cliContinueMachine() {
+    fmt.Println("cliContinueMachine")
+}
+
+func cliDeleteBreakpoint() {
+    fmt.Println("cliDeleteBreakpoing")
+}
+
+func cliDisassemble(base uint16, count int) {
+    for i := 0; i < count; i++ {
+        address := base + uint16(i * 2)
+        if address < 0x1000 {
+            printInstruction(address)
+        }
+    }
+}
+
+func cliExit() {
+    fmt.Println()
+    os.Exit(0)
+}
+
+func cliKillMachine() {
+    fmt.Println("cliKillMachine")
+}
+
+func cliLoadProgram() {
+    fmt.Println("cliLoadProgram")
+}
+
+func cliRunMachine() {
+    fmt.Println("cliRunMachine")
+}
+
+func cliShowBreakpoints() {
+    fmt.Println("cliShowBreakpoints")
+}
+
+func cliShowHelp() {
+    fmt.Println(`Available commands:
+e[xit] or q[uit]                quit the interpreter
+h[elp]                          show this message
+
+l[oad] <file>                   reset the memory and load a program from file
+run                             reset registers and run the machine
+s[tep]                          step machine execution
+k[ill]                          stop machine execution
+c[ontinue]                      resume machine execution
+
+d[isassemble]                   disassemble the next 10 instructions
+d[isassemble] <count>           disassemble the next count instructions
+d[isassemble] <address> <count> disassemble the next count instructions, starting at address
+
+r[egs]                          show registers
+p[ixmap]                        show the display pixmap
+
+b[reak] <address>               set a new breakpoint at address
+b[reak]p[oints]                 show breakpoints
+del[ete] <breakpoint#>          remove breakpoint number #
+cl[ear]                         delete all breakpoints`)
+}
+
+func cliShowPixmap() {
     for y := 0; y < SCREENHEIGHT; y++ {
         for x := 0; x < SCREENWIDTH; x++ {
             fmt.Printf("%d", display[x][y])
         }
         fmt.Printf("\n")
     }
+}
+
+func cliShowRegs() {
+    fmt.Printf("[V%X] 0x%02x    [DT]=0x%02x    [SP%X] 0x%03x\n", 0x0, state.v[0x0], state.dt, 0x0, stack[0x0])
+    fmt.Printf("[V%X] 0x%02x    [ST]=0x%02x    [SP%X] 0x%03x\n", 0x1, state.v[0x1], state.st, 0x1, stack[0x1])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x2, state.v[0x2], 0x2, stack[0x2])
+    fmt.Printf("[V%X] 0x%02x    [I]=0x%03x    [SP%X] 0x%03x\n", 0x3, state.v[0x3], state.i, 0x3, stack[0x3])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x4, state.v[0x4], 0x4, stack[0x4])
+    fmt.Printf("[V%X] 0x%02x    [PC]=0x%03x   [SP%X] 0x%03x\n", 0x5, state.v[0x5], state.pc, 0x5, stack[0x5])
+    fmt.Printf("[V%X] 0x%02x    [SP]=0x%02x    [SP%X] 0x%03x\n", 0x6, state.v[0x6], state.sp, 0x6, stack[0x6])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x7, state.v[0x7], 0x7, stack[0x7])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x8, state.v[0x8], 0x8, stack[0x8])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x9, state.v[0x9], 0x9, stack[0x9])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xa, state.v[0xa], 0xa, stack[0xa])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xb, state.v[0xb], 0xb, stack[0xb])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xc, state.v[0xc], 0xc, stack[0xc])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xd, state.v[0xd], 0xd, stack[0xd])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xe, state.v[0xe], 0xe, stack[0xe])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xf, state.v[0xf], 0xf, stack[0xf])
 }
 
 func printInstruction(address uint16) {
@@ -127,21 +225,87 @@ func printInstruction(address uint16) {
 	fmt.Printf("\n")
 }
 
-func printMachineState() {
-    fmt.Printf("[V%X] 0x%02x    [DT]=0x%02x    [SP%X] 0x%03x\n", 0x0, state.v[0x0], state.dt, 0x0, stack[0x0])
-    fmt.Printf("[V%X] 0x%02x    [ST]=0x%02x    [SP%X] 0x%03x\n", 0x1, state.v[0x1], state.st, 0x1, stack[0x1])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x2, state.v[0x2], 0x2, stack[0x2])
-    fmt.Printf("[V%X] 0x%02x    [I]=0x%03x    [SP%X] 0x%03x\n", 0x3, state.v[0x3], state.i, 0x3, stack[0x3])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x4, state.v[0x4], 0x4, stack[0x4])
-    fmt.Printf("[V%X] 0x%02x    [PC]=0x%03x   [SP%X] 0x%03x\n", 0x5, state.v[0x5], state.pc, 0x5, stack[0x5])
-    fmt.Printf("[V%X] 0x%02x    [SP]=0x%02x    [SP%X] 0x%03x\n", 0x6, state.v[0x6], state.sp, 0x6, stack[0x6])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x7, state.v[0x7], 0x7, stack[0x7])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x8, state.v[0x8], 0x8, stack[0x8])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x9, state.v[0x9], 0x9, stack[0x9])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xa, state.v[0xa], 0xa, stack[0xa])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xb, state.v[0xb], 0xb, stack[0xb])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xc, state.v[0xc], 0xc, stack[0xc])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xd, state.v[0xd], 0xd, stack[0xd])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xe, state.v[0xe], 0xe, stack[0xe])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xf, state.v[0xf], 0xf, stack[0xf])
+func runCLI() {
+    reader := bufio.NewReader(os.Stdin)
+    fmt.Println("Type \"h\" or \"help\" for commands usage")
+
+    for {
+        fmt.Printf(PROMPT)
+        input, err := reader.ReadString('\n')
+        if err != nil {
+            if err == io.EOF {
+                cliExit()
+            }
+            fmt.Fprintln(os.Stderr, err)
+        }
+        input = strings.TrimSuffix(input, "\n")
+
+        for _, command := range strings.Split(input, ";") {
+            args := strings.Split(command, " ")
+
+            switch args[0] {
+            case "b", "break":
+                cliAddBreakpoint()
+
+            case "bp", "breakpoints":
+                cliShowBreakpoints()
+
+            case "cl", "clear":
+                cliClearBreakpoints()
+
+            case "c", "continue":
+                cliContinueMachine()
+
+            case "delete":
+                cliDeleteBreakpoint()
+
+            case "d", "disassemble":
+                base := state.pc
+                count := 10
+                if len(args) > 2 {
+                    count, _ = strconv.Atoi(args[2])
+                    if strings.HasPrefix(args[1], "0x") || strings.HasPrefix(args[2], "0X") {
+                        i, _ := strconv.ParseInt(args[1][2:], 16, 16)
+                        base = uint16(i)
+                    } else {
+                        i, _ := strconv.ParseInt(args[1], 10, 16)
+                        base = uint16(i)
+                    }
+                } else if len(args) > 1 {
+                    count, _ = strconv.Atoi(args[1])
+                }
+                cliDisassemble(base, count)
+
+            case "e", "exit":
+                cliExit()
+
+            case "h", "help":
+                cliShowHelp()
+
+            case "k", "kill":
+                cliKillMachine()
+
+            case "l", "load":
+                cliLoadProgram()
+
+            case "p", "pixmap":
+                cliShowPixmap()
+
+            case "q", "quit":
+                cliExit()
+
+            case "r", "regs":
+                cliShowRegs()
+
+            case "run":
+                cliRunMachine()
+
+            case "s", "step":
+                stepMachine()
+
+            default:
+                fmt.Printf("%s: unrecognized command\n", args[0])
+            }
+        }
+    }
 }
