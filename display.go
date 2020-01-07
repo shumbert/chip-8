@@ -41,7 +41,7 @@ func redrawDisplay() {
 
     for x := 0; x < SCREENWIDTH; x++ {
         for y := 0; y < SCREENHEIGHT; y++ {
-            if pixmap[x][y] == 1 {
+            if m.pixmap[x][y] == 1 {
                 pixelRect.X = int32(x * MAGNIFICATION)
                 pixelRect.Y = int32(y * MAGNIFICATION)
                 pixelSurface.Blit(nil, surface, pixelRect)

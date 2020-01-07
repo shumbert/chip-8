@@ -86,29 +86,29 @@ cl[ear]                         delete all breakpoints`)
 func cliShowPixmap() {
     for y := 0; y < SCREENHEIGHT; y++ {
         for x := 0; x < SCREENWIDTH; x++ {
-            fmt.Printf("%d", display[x][y])
+            fmt.Printf("%d", m.pixmap[x][y])
         }
         fmt.Printf("\n")
     }
 }
 
 func cliShowRegs() {
-    fmt.Printf("[V%X] 0x%02x    [DT]=0x%02x    [SP%X] 0x%03x\n", 0x0, state.v[0x0], state.dt, 0x0, stack[0x0])
-    fmt.Printf("[V%X] 0x%02x    [ST]=0x%02x    [SP%X] 0x%03x\n", 0x1, state.v[0x1], state.st, 0x1, stack[0x1])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x2, state.v[0x2], 0x2, stack[0x2])
-    fmt.Printf("[V%X] 0x%02x    [I]=0x%03x    [SP%X] 0x%03x\n", 0x3, state.v[0x3], state.i, 0x3, stack[0x3])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x4, state.v[0x4], 0x4, stack[0x4])
-    fmt.Printf("[V%X] 0x%02x    [PC]=0x%03x   [SP%X] 0x%03x\n", 0x5, state.v[0x5], state.pc, 0x5, stack[0x5])
-    fmt.Printf("[V%X] 0x%02x    [SP]=0x%02x    [SP%X] 0x%03x\n", 0x6, state.v[0x6], state.sp, 0x6, stack[0x6])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x7, state.v[0x7], 0x7, stack[0x7])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x8, state.v[0x8], 0x8, stack[0x8])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x9, state.v[0x9], 0x9, stack[0x9])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xa, state.v[0xa], 0xa, stack[0xa])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xb, state.v[0xb], 0xb, stack[0xb])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xc, state.v[0xc], 0xc, stack[0xc])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xd, state.v[0xd], 0xd, stack[0xd])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xe, state.v[0xe], 0xe, stack[0xe])
-    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xf, state.v[0xf], 0xf, stack[0xf])
+    fmt.Printf("[V%X] 0x%02x    [DT]=0x%02x    [SP%X] 0x%03x\n", 0x0, m.regs.v[0x0], m.regs.dt, 0x0, m.stack[0x0])
+    fmt.Printf("[V%X] 0x%02x    [ST]=0x%02x    [SP%X] 0x%03x\n", 0x1, m.regs.v[0x1], m.regs.st, 0x1, m.stack[0x1])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x2, m.regs.v[0x2], 0x2, m.stack[0x2])
+    fmt.Printf("[V%X] 0x%02x    [I]=0x%03x    [SP%X] 0x%03x\n", 0x3, m.regs.v[0x3], m.regs.i, 0x3, m.stack[0x3])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x4, m.regs.v[0x4], 0x4, m.stack[0x4])
+    fmt.Printf("[V%X] 0x%02x    [PC]=0x%03x   [SP%X] 0x%03x\n", 0x5, m.regs.v[0x5], m.regs.pc, 0x5, m.stack[0x5])
+    fmt.Printf("[V%X] 0x%02x    [SP]=0x%02x    [SP%X] 0x%03x\n", 0x6, m.regs.v[0x6], m.regs.sp, 0x6, m.stack[0x6])
+    fmt.Printf("[V%X] 0x%02x    [CY]=0x%01x     [SP%X] 0x%03x\n", 0x7, m.regs.v[0x7], m.cycles, 0x7, m.stack[0x7])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x8, m.regs.v[0x8], 0x8, m.stack[0x8])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0x9, m.regs.v[0x9], 0x9, m.stack[0x9])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xa, m.regs.v[0xa], 0xa, m.stack[0xa])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xb, m.regs.v[0xb], 0xb, m.stack[0xb])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xc, m.regs.v[0xc], 0xc, m.stack[0xc])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xd, m.regs.v[0xd], 0xd, m.stack[0xd])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xe, m.regs.v[0xe], 0xe, m.stack[0xe])
+    fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xf, m.regs.v[0xf], 0xf, m.stack[0xf])
 }
 
 func printInstruction(address uint16) {
@@ -240,6 +240,10 @@ func runCLI() {
         }
         input = strings.TrimSuffix(input, "\n")
 
+        // FIXME: command is not properly parsed if there
+        // are spaces
+        // for instance s;d 1;r
+        // but s ; d 1 ; r is not
         for _, command := range strings.Split(input, ";") {
             args := strings.Split(command, " ")
 
@@ -260,7 +264,7 @@ func runCLI() {
                 cliDeleteBreakpoint()
 
             case "d", "disassemble":
-                base := state.pc
+                base := m.regs.pc
                 count := 10
                 if len(args) > 2 {
                     count, _ = strconv.Atoi(args[2])
@@ -298,7 +302,8 @@ func runCLI() {
                 cliShowRegs()
 
             case "run":
-                cliRunMachine()
+                //cliRunMachine()
+                runMachine()
 
             case "s", "step":
                 stepMachine()

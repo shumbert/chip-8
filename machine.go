@@ -24,6 +24,7 @@ const (
     MEMEND = 0x1000
     SCREENWIDTH = 64
     SCREENHEIGHT = 32
+    SLEEPTIME = 16666667 * time.Nanosecond
 )
 
 type opcode int
@@ -67,13 +68,18 @@ const (
 
 type instruction struct {
 	op opcode  // Instruction opcode
-	nnn uint16 // (or addr) A 12-bit value, the lowest 12 bits of the instruction<Paste>
+	nnn uint16 // (or addr) A 12-bit value, the lowest 12 bits of the instruction
 	x byte     // A 4-bit value, the lower 4 bits of the high byte of the instruction
 	y byte     // A 4-bit value, the upper 4 bits of the low byte of the instruction
 	kk byte    // (or byte) An 8-bit value, the lowest 8 bits of the instruction
 	n byte     // (or nibble) A 4-bit value, the lowest 4 bits of the instruction
 }
 
+// 
+// Definition of the machine state
+//
+
+// First the machine registers
 type registers struct {
 	v  [16]byte // Data registers V0 to VF
 	i  uint16   // Address Register
@@ -82,10 +88,28 @@ type registers struct {
 	pc uint16   // Program Counter
 	sp byte     // Stack Pointer
 }
-var pixmap [SCREENWIDTH][SCREENHEIGHT]uint8
-var memory [4096]byte
-var stack [16]uint16
-var state registers
+
+// Now let's bundle the register with the machine memory,
+// the stack and the display pixmap.
+//
+// Hardware running CHIP-8 were typically clocked at 540Hz. Delay and sound
+// timers tick down at 60Hz, display refresh rate is 60Hz too. To get the 
+// proper emulation speed and keep things simple, the main emulation loop runs
+// at 60Hz. For each iteration we execute 540 / 60 = 9 instructions, then we
+// decrease timers and refresh the display.
+//
+// The cycles variable is not part of the original CHIP-8 machine, it's just an
+// artifact to keep track of how many instructions were executed in the current
+// loop iteration.
+type machine struct {
+    cycles byte
+    pixmap [SCREENWIDTH][SCREENHEIGHT]uint8
+    memory [4096]byte
+    regs   registers
+    stack  [16]uint16
+}
+
+var m machine
 
 var fonts [80]byte = [80]byte{
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -229,13 +253,13 @@ func disassembleInstruction(assembled uint16) (disassembled instruction) {
 }
 
 func getInstruction(address uint16) uint16 {
-    return uint16(memory[address]) << 8 + uint16(memory[address + 1])
+    return uint16(m.memory[address]) << 8 + uint16(m.memory[address + 1])
 }
 
 
 func loadProgram(program string) {
     for i := MEMPROGRAMSTART; i < MEMEND; i++ {
-        memory[i] = 0
+        m.memory[i] = 0
     }
 
     data, err := ioutil.ReadFile(program)
@@ -245,26 +269,22 @@ func loadProgram(program string) {
 
     // TODO: check if program is too big
     for i, v := range data {
-        memory[MEMPROGRAMSTART + i] = v
+        m.memory[MEMPROGRAMSTART + i] = v
     }
 }
 
 func runMachine() {
     for {
-		// run loop at 120hz
-		// every other iteration decrement timers
-		// every iteration: calculate time ellapsed and compute number of instructions which should be run
-        // So it's much better to run our loop at much lower speed (100Hz in my case), calculating time between two loop cycles, then based on target frequency calculate number of operations that should be performed and perform them at once.
-        // When you are writing emulator, you have original CPU speed as a reference in most cases, but since CHIP-8 is interpreted language, speed varies based on device program was designed for. By my observations best universal speed for CHIP-8 programs is 500Hz and for SuperCHIP it's 1000hz, but you have to give user ability to change it so their experience is as good as possible. Also don't forget that delay and sound timers should always tick down at 60Hz, no matter how fast emulator is running.<Paste>
-
-
-        stepMachine()
+        for i := 0; i < 9; i++ {
+            stepMachine()
+        }
+        time.Sleep(SLEEPTIME)
     }
 }
 
 func stepMachine() {
     incrementPC := true
-    instruction := disassembleInstruction(getInstruction(state.pc))
+    instruction := disassembleInstruction(getInstruction(m.regs.pc))
 
     switch {
     case instruction.op == sys:
@@ -273,131 +293,132 @@ func stepMachine() {
     case instruction.op == cls:
         for x := 0; x < 64; x++ {
             for y := 0; y < 32; y++ {
-                pixmap[x][y] = 0
+                m.pixmap[x][y] = 0
             }
         }
 
     case instruction.op == ret:
-        state.pc = stack[state.sp]
-        stack[state.sp] = 0 // Clean the value from the stack, not required but better for debugging
-        state.sp++
+        m.regs.pc = m.stack[m.regs.sp]
+        m.stack[m.regs.sp] = 0 // Clean the value from the m.stack, not required but better for debugging
+        m.regs.sp++
+        incrementPC = false
 
     case instruction.op == jmp:
-        state.pc = instruction.nnn
+        m.regs.pc = instruction.nnn
         incrementPC = false
 
     case instruction.op == call:
-        // TODO: check if stack isn't full
+        // TODO: check if m.stack isn't full
         // TODO: check if addr is valid
-        state.sp--
-        stack[state.sp] = state.pc + 2
-        state.pc = instruction.nnn
+        m.regs.sp--
+        m.stack[m.regs.sp] = m.regs.pc + 2
+        m.regs.pc = instruction.nnn
         incrementPC = false
 
     case instruction.op == seb:
-        if state.v[instruction.x] == instruction.kk {
-            state.pc += 2
+        if m.regs.v[instruction.x] == instruction.kk {
+            m.regs.pc += 2
         }
 
     case instruction.op == sneb:
-        if state.v[instruction.x] != instruction.kk {
-            state.pc += 2
+        if m.regs.v[instruction.x] != instruction.kk {
+            m.regs.pc += 2
         }
 
     case instruction.op == ser:
-        if state.v[instruction.x] == state.v[instruction.y] {
-            state.pc += 2
+        if m.regs.v[instruction.x] == m.regs.v[instruction.y] {
+            m.regs.pc += 2
         }
 
     case instruction.op == ldb:
-        state.v[instruction.x] = instruction.kk
+        m.regs.v[instruction.x] = instruction.kk
 
     case instruction.op == addb:
-        if int(state.v[instruction.x]) + int(instruction.kk) > 256 {
-            state.v[0xf] = 1
+        if int(m.regs.v[instruction.x]) + int(instruction.kk) > 256 {
+            m.regs.v[0xf] = 1
         } else {
-            state.v[0xf] = 0
+            m.regs.v[0xf] = 0
         }
-        state.v[instruction.x] += instruction.kk
+        m.regs.v[instruction.x] += instruction.kk
 
     case instruction.op == ldr:
-        state.v[instruction.x] = state.v[instruction.y]
+        m.regs.v[instruction.x] = m.regs.v[instruction.y]
 
     case instruction.op == or:
-        state.v[instruction.x] |= state.v[instruction.y]
+        m.regs.v[instruction.x] |= m.regs.v[instruction.y]
 
     case instruction.op == and:
-        state.v[instruction.x] &= state.v[instruction.y]
+        m.regs.v[instruction.x] &= m.regs.v[instruction.y]
 
     case instruction.op == xor:
-        state.v[instruction.x] ^= state.v[instruction.y]
+        m.regs.v[instruction.x] ^= m.regs.v[instruction.y]
 
     case instruction.op == addr:
-        state.v[instruction.x] += state.v[instruction.y]
+        m.regs.v[instruction.x] += m.regs.v[instruction.y]
 
     case instruction.op == sub:
-        if state.v[instruction.x] > state.v[instruction.y] {
-            state.v[0xf] = 1
+        if m.regs.v[instruction.x] > m.regs.v[instruction.y] {
+            m.regs.v[0xf] = 1
         } else {
-            state.v[0xf] = 0
+            m.regs.v[0xf] = 0
         }
-        state.v[instruction.x] -= state.v[instruction.y]
+        m.regs.v[instruction.x] -= m.regs.v[instruction.y]
 
     case instruction.op == shr:
-        if state.v[instruction.x] & 0x01 == 1 {
-            state.v[0xf] = 1
+        if m.regs.v[instruction.x] & 0x01 == 1 {
+            m.regs.v[0xf] = 1
         } else {
-            state.v[0xf] = 0
+            m.regs.v[0xf] = 0
         }
-        state.v[instruction.x] = state.v[instruction.x] >> 1
+        m.regs.v[instruction.x] = m.regs.v[instruction.x] >> 1
 
     case instruction.op == subn:
-        if state.v[instruction.y] > state.v[instruction.x] {
-            state.v[0xf] = 1
+        if m.regs.v[instruction.y] > m.regs.v[instruction.x] {
+            m.regs.v[0xf] = 1
         } else {
-            state.v[0xf] = 0
+            m.regs.v[0xf] = 0
         }
-        state.v[instruction.x] = state.v[instruction.y] - state.v[instruction.x]
+        m.regs.v[instruction.x] = m.regs.v[instruction.y] - m.regs.v[instruction.x]
 
     case instruction.op == shl:
-        if state.v[instruction.x] >> 7 == 1 {
-            state.v[0xf] = 1
+        if m.regs.v[instruction.x] >> 7 == 1 {
+            m.regs.v[0xf] = 1
         } else {
-            state.v[0xf] = 0
+            m.regs.v[0xf] = 0
         }
-        state.v[instruction.x] = state.v[instruction.x] << 1
+        m.regs.v[instruction.x] = m.regs.v[instruction.x] << 1
 
     case instruction.op == sner:
-        if state.v[instruction.x] != state.v[instruction.y] {
-            state.pc += 2
+        if m.regs.v[instruction.x] != m.regs.v[instruction.y] {
+            m.regs.pc += 2
         }
 
     case instruction.op == ldi:
-        state.i = instruction.nnn
+        m.regs.i = instruction.nnn
 
     case instruction.op == jpv:
-        state.pc = uint16(state.v[0x0]) + instruction.nnn
+        m.regs.pc = uint16(m.regs.v[0x0]) + instruction.nnn
         incrementPC = false
 
     case instruction.op == rnd:
-        state.v[instruction.x] = byte(rand.Intn(255)) & instruction.kk
+        m.regs.v[instruction.x] = byte(rand.Intn(255)) & instruction.kk
 
     case instruction.op == drw:
-        state.v[0xf] = 0
+        m.regs.v[0xf] = 0
 
         for j := uint16(0); j < uint16(instruction.n); j++ {
-            y := (uint16(state.v[instruction.y]) + j)
+            y := (uint16(m.regs.v[instruction.y]) + j)
             if y < SCREENHEIGHT {
                 for i := uint16(0); i < 8; i++ {
-                    x := (uint16(state.v[instruction.x]) + i)
+                    x := (uint16(m.regs.v[instruction.x]) + i)
                     if x < SCREENWIDTH {
-                        p := &pixmap[x][y]
-                        n := (memory[state.i + j] >> (8 - (i + 1))) & 0x1
+                        p := &m.pixmap[x][y]
+                        n := (m.memory[m.regs.i + j] >> (8 - (i + 1))) & 0x1
 
                         old := *p
                         *p ^= n
                         if old > *p {
-                            state.v[0xf] = 1
+                            m.regs.v[0xf] = 1
                         }
                     }
                 }
@@ -411,71 +432,75 @@ func stepMachine() {
         // TODO: implement me!
 
     case instruction.op == gett:
-        state.v[instruction.x] = state.dt
+        m.regs.v[instruction.x] = m.regs.dt
 
     case instruction.op == ldk:
         // TODO: implement me!
 
     case instruction.op == sett:
-        state.dt = state.v[instruction.x]
+        m.regs.dt = m.regs.v[instruction.x]
 
     case instruction.op == lds:
-        state.st = instruction.x
+        m.regs.st = instruction.x
 
     case instruction.op == addi:
-        state.i = state.i + uint16(state.v[instruction.x])
+        m.regs.i = m.regs.i + uint16(m.regs.v[instruction.x])
 
     case instruction.op == ldf:
         // TODO: check value in register is not bigger than 0xf
-        state.i = uint16(state.v[instruction.x]) * 5
+        m.regs.i = uint16(m.regs.v[instruction.x]) * 5
 
     case instruction.op == ldbcd:
-        n := state.v[instruction.x]
-        memory[state.i], n = n / 100, n % 100
-        memory[state.i + 1], n = n / 10, n % 10
-        memory[state.i + 2] = n
+        n := m.regs.v[instruction.x]
+        m.memory[m.regs.i], n = n / 100, n % 100
+        m.memory[m.regs.i + 1], n = n / 10, n % 10
+        m.memory[m.regs.i + 2] = n
 
     case instruction.op == save:
         for j := uint16(0); j < uint16(instruction.x); j++ {
-            memory[state.i + j] = state.v[j]
+            m.memory[m.regs.i + j] = m.regs.v[j]
         }
 
     case instruction.op == restore:
         for j := uint16(0); j < uint16(instruction.x); j++ {
-            state.v[j] = memory[state.i + j]
+            m.regs.v[j] = m.memory[m.regs.i + j]
         }
     }
 
     if incrementPC {
-        state.pc += 2
+        m.regs.pc += 2
     }
 
-	//TODO: decrement timers for debugging purposes only
-	if state.dt > 0 {
-		state.dt--
-	}
-	if state.st > 0 {
-		state.st--
-	}
+    m.cycles++
+    if m.cycles == 9 {
+	    if m.regs.dt > 0 {
+		    m.regs.dt--
+	    }
+	    if m.regs.st > 0 {
+	        m.regs.st--
+	    }
+        m.cycles = 0
+    }
 }
 
 func initializeMachine() {
     resetRegisters()
+    m.cycles = 0
 
     for i, v := range fonts {
-        memory[MEMFONTS + i] = v
+        m.memory[MEMFONTS + i] = v
     }
 
     rand.Seed(time.Now().UnixNano())
 }
 
 func resetRegisters() {
-    for i, _ := range state.v {
-        state.v[i] = 0
+    for i, _ := range m.regs.v {
+        m.regs.v[i] = 0
     }
-	state.i = 0
-	state.dt = 0
-	state.st = 0
-	state.pc = MEMPROGRAMSTART
-    state.sp = 16
+	m.regs.i = 0
+	m.regs.dt = 0
+	m.regs.st = 0
+	m.regs.pc = MEMPROGRAMSTART
+    m.regs.sp = 16
 }
