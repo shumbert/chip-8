@@ -13,10 +13,6 @@ const (
     PROMPT = "chip> "
 )
 
-func cliAddBreakpoint() {
-    fmt.Println("cliAddBreakpoint")
-}
-
 func cliClearBreakpoints() {
     fmt.Println("cliClearBreakpoints")
 }
@@ -249,10 +245,30 @@ func runCLI() {
 
             switch args[0] {
             case "b", "break":
-                cliAddBreakpoint()
+                if len(args) > 1 {
+                    var address uint16
+                    if strings.HasPrefix(args[1], "0x") || strings.HasPrefix(args[1], "0X") {
+                        i, _ := strconv.ParseInt(args[1][2:], 16, 16)
+                        address = uint16(i)
+                    } else {
+                        i, _ := strconv.ParseInt(args[1], 10, 16)
+                        address = uint16(i)
+                    }
+
+                    if address % 2 == 0 && address >= 0x200 && address < 0x1000 {
+                        addBreakpoint(address)
+                    } else {
+                        fmt.Printf("Invalid address\n")
+                    }
+                } else {
+                    fmt.Printf("Missing address\n")
+                }
 
             case "bp", "breakpoints":
-                cliShowBreakpoints()
+                breakpoints := listBreakpoints()
+                for i := 0; i < len(breakpoints); i++ {
+                    fmt.Printf("Breakpoint #%d: 0x%03x\n", i + 1, breakpoints[i])
+                }
 
             case "cl", "clear":
                 cliClearBreakpoints()

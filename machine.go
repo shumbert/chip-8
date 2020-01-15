@@ -3,7 +3,7 @@ package main
 // add package description
 
 import (
-    //"fmt"
+    "fmt"
     "io/ioutil"
     "log"
     "math/rand"
@@ -102,11 +102,12 @@ type registers struct {
 // artifact to keep track of how many instructions were executed in the current
 // loop iteration.
 type machine struct {
-    cycles byte
-    pixmap [SCREENWIDTH][SCREENHEIGHT]uint8
-    memory [4096]byte
-    regs   registers
-    stack  [16]uint16
+    breakpoints []uint16
+    cycles      byte
+    pixmap      [SCREENWIDTH][SCREENHEIGHT]uint8
+    memory      [4096]byte
+    regs        registers
+    stack       [16]uint16
 }
 
 var m machine
@@ -128,6 +129,10 @@ var fonts [80]byte = [80]byte{
     0xE0, 0x90, 0x90, 0x90, 0xE0, // D
     0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
+}
+
+func addBreakpoint(address uint16) {
+    m.breakpoints = append(m.breakpoints, address)
 }
 
 func disassembleInstruction(assembled uint16) (disassembled instruction) {
@@ -273,10 +278,20 @@ func loadProgram(program string) {
     }
 }
 
+func listBreakpoints() []uint16{
+    return m.breakpoints
+}
+
 func runMachine() {
     for {
         for i := 0; i < 9; i++ {
             stepMachine()
+            for i := 0; i < len(m.breakpoints); i++ {
+                if m.regs.pc == m.breakpoints[i] {
+                    fmt.Printf("Found breakpoint at 0x%03x\n", m.regs.pc)
+                    return
+                }
+            }
         }
         time.Sleep(SLEEPTIME)
     }
@@ -486,6 +501,7 @@ func stepMachine() {
 func initializeMachine() {
     resetRegisters()
     m.cycles = 0
+    m.breakpoints = make([]uint16, 0, 5)
 
     for i, v := range fonts {
         m.memory[MEMFONTS + i] = v
