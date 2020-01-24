@@ -7,6 +7,7 @@ import (
     "os"
 )
 
+
 func main() {
     if i := len(os.Args); i != 2 {
 	    fmt.Println("Missing argument")
@@ -14,8 +15,10 @@ func main() {
     }
     program := os.Args[1]
 
-    go runDisplay()
-    initializeMachine()
-    loadProgram(program)
-    runCLI()
+    draw := make(chan struct {})
+    go ioRunDisplay(draw)
+
+    machineInitialize()
+    machineLoadProgram(program)
+    cliRun(draw)
 }

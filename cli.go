@@ -13,58 +13,32 @@ const (
     PROMPT = "chip> "
 )
 
-func cliClearBreakpoints() {
-    fmt.Println("cliClearBreakpoints")
-}
-
-func cliContinueMachine() {
-    fmt.Println("cliContinueMachine")
-}
-
-func cliDeleteBreakpoint() {
-    fmt.Println("cliDeleteBreakpoing")
-}
 
 func cliDisassemble(base uint16, count int) {
     for i := 0; i < count; i++ {
         address := base + uint16(i * 2)
         if address < 0x1000 {
-            printInstruction(address)
+            cliPrintInstruction(address)
         }
     }
 }
+
 
 func cliExit() {
     fmt.Println()
     os.Exit(0)
 }
 
-func cliKillMachine() {
-    fmt.Println("cliKillMachine")
-}
-
-func cliLoadProgram() {
-    fmt.Println("cliLoadProgram")
-}
-
-func cliRunMachine() {
-    fmt.Println("cliRunMachine")
-}
-
-func cliShowBreakpoints() {
-    fmt.Println("cliShowBreakpoints")
-}
 
 func cliShowHelp() {
     fmt.Println(`Available commands:
 e[xit] or q[uit]                quit the interpreter
 h[elp]                          show this message
 
-l[oad] <file>                   reset the memory and load a program from file
-run                             reset registers and run the machine
-s[tep]                          step machine execution
-k[ill]                          stop machine execution
-c[ontinue]                      resume machine execution
+ru[n]                           run the machine
+s[tep]                          step machine
+k[ill]                          stop machine run
+re[set]                         reset the machine
 
 d[isassemble]                   disassemble the next 10 instructions
 d[isassemble] <count>           disassemble the next count instructions
@@ -79,6 +53,7 @@ del[ete] <breakpoint#>          remove breakpoint number #
 cl[ear]                         delete all breakpoints`)
 }
 
+
 func cliShowPixmap() {
     for y := 0; y < SCREENHEIGHT; y++ {
         for x := 0; x < SCREENWIDTH; x++ {
@@ -87,6 +62,7 @@ func cliShowPixmap() {
         fmt.Printf("\n")
     }
 }
+
 
 func cliShowRegs() {
     fmt.Printf("[V%X] 0x%02x    [DT]=0x%02x    [SP%X] 0x%03x\n", 0x0, m.regs.v[0x0], m.regs.dt, 0x0, m.stack[0x0])
@@ -107,9 +83,10 @@ func cliShowRegs() {
     fmt.Printf("[V%X] 0x%02x                 [SP%X] 0x%03x\n", 0xf, m.regs.v[0xf], 0xf, m.stack[0xf])
 }
 
-func printInstruction(address uint16) {
-	assembled := getInstruction(address)
-    disassembled := disassembleInstruction(assembled)
+
+func cliPrintInstruction(address uint16) {
+	assembled := machineGetInstruction(address)
+    disassembled := machineDisassembleInstruction(assembled)
 
 	fmt.Printf("0x%03x: 0x%04x ", address, assembled)
     switch {
@@ -221,9 +198,12 @@ func printInstruction(address uint16) {
 	fmt.Printf("\n")
 }
 
-func runCLI() {
-    reader := bufio.NewReader(os.Stdin)
+
+func cliRun(draw chan struct{}) {
     fmt.Println("Type \"h\" or \"help\" for commands usage")
+
+    reader := bufio.NewReader(os.Stdin)
+    stop := make(chan struct{}, 1)
 
     for {
         fmt.Printf(PROMPT)
@@ -256,7 +236,7 @@ func runCLI() {
                     }
 
                     if address % 2 == 0 && address >= 0x200 && address < 0x1000 {
-                        addBreakpoint(address)
+                        machineAddBreakpoint(address)
                     } else {
                         fmt.Printf("Invalid address\n")
                     }
@@ -265,19 +245,21 @@ func runCLI() {
                 }
 
             case "bp", "breakpoints":
-                breakpoints := listBreakpoints()
+                breakpoints := machineListBreakpoints()
                 for i := 0; i < len(breakpoints); i++ {
                     fmt.Printf("Breakpoint #%d: 0x%03x\n", i + 1, breakpoints[i])
                 }
 
             case "cl", "clear":
-                cliClearBreakpoints()
+                machineClearBreakpoints()
 
-            case "c", "continue":
-                cliContinueMachine()
-
-            case "delete":
-                cliDeleteBreakpoint()
+            case "del", "delete":
+                if len(args) > 1 {
+                    id, _ := strconv.ParseInt(args[1], 10, 0)
+                    machineDeleteBreakpoint(int(id))
+                } else {
+                    fmt.Printf("Missing breakpoint id\n")
+                }
 
             case "d", "disassemble":
                 base := m.regs.pc
@@ -303,10 +285,9 @@ func runCLI() {
                 cliShowHelp()
 
             case "k", "kill":
-                cliKillMachine()
-
-            case "l", "load":
-                cliLoadProgram()
+                if machineIsRunning() {
+                    stop <- struct{}{}
+                }
 
             case "p", "pixmap":
                 cliShowPixmap()
@@ -317,12 +298,26 @@ func runCLI() {
             case "r", "regs":
                 cliShowRegs()
 
-            case "run":
-                //cliRunMachine()
-                runMachine()
+            case "re", "reset":
+                if machineIsRunning() {
+                    stop <- struct{}{}
+                }
+                machineReset()
+                draw <- struct{}{}
+
+            case "ru", "run":
+                if machineIsRunning() {
+                    fmt.Printf("Machine is already running.\n")
+                } else {
+                    go machineRun(draw, stop)
+                }
 
             case "s", "step":
-                stepMachine()
+                if machineIsRunning() {
+                    fmt.Printf("Machine is running, cannot step it.\n")
+                } else {
+                    machineStep(draw)
+                }
 
             default:
                 fmt.Printf("%s: unrecognized command\n", args[0])

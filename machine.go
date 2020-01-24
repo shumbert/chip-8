@@ -107,6 +107,7 @@ type machine struct {
     pixmap      [SCREENWIDTH][SCREENHEIGHT]uint8
     memory      [4096]byte
     regs        registers
+    running     bool
     stack       [16]uint16
 }
 
@@ -131,11 +132,33 @@ var fonts [80]byte = [80]byte{
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 }
 
-func addBreakpoint(address uint16) {
+
+func machineAddBreakpoint(address uint16) {
     m.breakpoints = append(m.breakpoints, address)
 }
 
-func disassembleInstruction(assembled uint16) (disassembled instruction) {
+
+func machineClearBreakpoints() {
+    m.breakpoints = make([]uint16, 0, 5)
+}
+
+
+func machineDeleteBreakpoint(friendly int) {
+    // friendly is the breakpoint id as seen by the user
+    // id is the actual breakpoint id
+    id := friendly - 1
+    if friendly == 0 || id >= len(m.breakpoints) {
+        fmt.Printf("Invalid breakpoint id\n")
+    } else {
+        for i := id; i < int(len(m.breakpoints)) - 1; i++ {
+            m.breakpoints[i] = m.breakpoints[i + 1]
+        }
+        m.breakpoints = m.breakpoints[:len(m.breakpoints) - 1]
+    }
+}
+
+
+func machineDisassembleInstruction(assembled uint16) (disassembled instruction) {
 	// Extract variables from the assembled instruction
 	// Obviously we won't need all of them, extra ones are just ignored
     nnn := assembled & 0x0FFF
@@ -257,12 +280,27 @@ func disassembleInstruction(assembled uint16) (disassembled instruction) {
     }
 }
 
-func getInstruction(address uint16) uint16 {
+
+func machineGetInstruction(address uint16) uint16 {
     return uint16(m.memory[address]) << 8 + uint16(m.memory[address + 1])
 }
 
 
-func loadProgram(program string) {
+func machineInitialize() {
+    for i, v := range fonts {
+        m.memory[MEMFONTS + i] = v
+    }
+    m.breakpoints = make([]uint16, 0, 5)
+    machineReset()
+}
+
+
+func machineIsRunning() bool {
+    return m.running
+}
+
+
+func machineLoadProgram(program string) {
     for i := MEMPROGRAMSTART; i < MEMEND; i++ {
         m.memory[i] = 0
     }
@@ -278,28 +316,64 @@ func loadProgram(program string) {
     }
 }
 
-func listBreakpoints() []uint16{
+
+func machineListBreakpoints() []uint16{
     return m.breakpoints
 }
 
-func runMachine() {
+
+func machineReset() {
+    for i, _ := range m.regs.v {
+        m.regs.v[i] = 0
+    }
+	m.regs.i = 0
+	m.regs.dt = 0
+	m.regs.st = 0
+	m.regs.pc = MEMPROGRAMSTART
+    m.regs.sp = 16
+
+    m.cycles = 0
+    m.running = false
+    rand.Seed(time.Now().UnixNano())
+
+    for x := 0; x < 64; x++ {
+        for y := 0; y < 32; y++ {
+            m.pixmap[x][y] = 0
+        }
+    }
+}
+
+
+func machineRun(draw chan struct{}, stop chan struct{}) {
+    m.running = true
     for {
-        for i := 0; i < 9; i++ {
-            stepMachine()
+        for i := m.cycles; i < 9; i++ {
             for i := 0; i < len(m.breakpoints); i++ {
                 if m.regs.pc == m.breakpoints[i] {
                     fmt.Printf("Found breakpoint at 0x%03x\n", m.regs.pc)
+                    m.running = false
                     return
                 }
             }
+
+            // we received a stop token from the CLI
+            // dequeue it and exit the run
+            if (len(stop)) == 1 {
+                <-stop
+                m.running = false
+                return
+            }
+
+            machineStep(draw)
         }
         time.Sleep(SLEEPTIME)
     }
 }
 
-func stepMachine() {
+
+func machineStep(draw chan struct{}) {
     incrementPC := true
-    instruction := disassembleInstruction(getInstruction(m.regs.pc))
+    instruction := machineDisassembleInstruction(machineGetInstruction(m.regs.pc))
 
     switch {
     case instruction.op == sys:
@@ -314,7 +388,7 @@ func stepMachine() {
 
     case instruction.op == ret:
         m.regs.pc = m.stack[m.regs.sp]
-        m.stack[m.regs.sp] = 0 // Clean the value from the m.stack, not required but better for debugging
+        m.stack[m.regs.sp] = 0 // Clean the value from m.stack, not required but better for debugging
         m.regs.sp++
         incrementPC = false
 
@@ -444,7 +518,8 @@ func stepMachine() {
         // TODO: implement me!
 
     case instruction.op == sknp:
-        // TODO: implement me!
+        // FIXME: we don't read inputs yet, so next intruction is always skipped
+        m.regs.pc += 2
 
     case instruction.op == gett:
         m.regs.v[instruction.x] = m.regs.dt
@@ -495,28 +570,6 @@ func stepMachine() {
 	        m.regs.st--
 	    }
         m.cycles = 0
+        draw <- struct{}{}
     }
-}
-
-func initializeMachine() {
-    resetRegisters()
-    m.cycles = 0
-    m.breakpoints = make([]uint16, 0, 5)
-
-    for i, v := range fonts {
-        m.memory[MEMFONTS + i] = v
-    }
-
-    rand.Seed(time.Now().UnixNano())
-}
-
-func resetRegisters() {
-    for i, _ := range m.regs.v {
-        m.regs.v[i] = 0
-    }
-	m.regs.i = 0
-	m.regs.dt = 0
-	m.regs.st = 0
-	m.regs.pc = MEMPROGRAMSTART
-    m.regs.sp = 16
 }

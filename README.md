@@ -51,3 +51,8 @@ Octo provides basic debugging facilities for Chip8 programs. While a program is 
 When interrupted, pressing “i” again or clicking the “continue” icon will resume execution, while pressing “o” will single-step through the program. The “u” key will attempt to step out (execute until the current subroutine returns) and the “l” key will attempt to step over (execute the contents of any subroutines until they return to the current level).
 
 Breakpoints can also be placed in source code by using the command :breakpoint followed by a name- the name will be shown when the breakpoint is encountered so that multiple breakpoints can be readily distinguished. :breakpoint is an out-of-band debugging facility and inserting a breakpoint into your program will not add any code or modify any Chip8 registers.
+
+# TODO
+- rename all functions so that the name identifies which file they're in, i.e. runMachine() to machineRun()
+- add exceptions where needed:
+  - typically machineDeleteBreakpoint should return an error if the breakpoint id is not valid

@@ -2,7 +2,6 @@ package main
 
 import (
     "github.com/veandco/go-sdl2/sdl"
-    "time"
 )
 
 const (
@@ -14,12 +13,14 @@ var surface, pixelSurface *sdl.Surface
 var pixelRect *sdl.Rect
 var black, white uint32
 
-func cleanupDisplay() {
+
+func ioCleanupDisplay() {
     window.Destroy()
     sdl.Quit()
 }
 
-func initializeDisplay() {
+
+func ioInitDisplay() {
     // TODO: assign err and process it
     sdl.Init(sdl.INIT_EVERYTHING)
     window, _ = sdl.CreateWindow("CHIP-8", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, SCREENWIDTH * MAGNIFICATION, SCREENHEIGHT * MAGNIFICATION, sdl.WINDOW_SHOWN)
@@ -36,7 +37,8 @@ func initializeDisplay() {
     pixelRect.H = MAGNIFICATION
 }
 
-func redrawDisplay() {
+
+func ioRedrawDisplay() {
     surface.FillRect(nil, black)
 
     for x := 0; x < SCREENWIDTH; x++ {
@@ -51,13 +53,14 @@ func redrawDisplay() {
     window.UpdateSurface()
 }
 
-func runDisplay() {
-    initializeDisplay()
-    defer cleanupDisplay()
 
-    redrawDisplay()
+func ioRunDisplay(draw chan struct{}) {
+    ioInitDisplay()
+    defer ioCleanupDisplay()
+
+    ioRedrawDisplay()
     for {
-        time.Sleep(1 * time.Second)
-        redrawDisplay()
+        <-draw
+        ioRedrawDisplay()
     }
 }
