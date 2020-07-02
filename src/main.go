@@ -15,10 +15,14 @@ func main() {
     }
     program := os.Args[1]
 
-    draw := make(chan struct {})
-    go ioRunDisplay(draw)
-
+    ioInit()
     machineInitialize()
     machineLoadProgram(program)
-    cliRun(draw)
+    buzz := make(chan struct {})
+    draw := make(chan struct {})
+
+    go ioRunBuzzer(buzz)
+    go ioRunDisplay(draw)
+    go ioRunKeyboard()
+    cliRun(buzz, draw)
 }

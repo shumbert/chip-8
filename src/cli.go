@@ -199,7 +199,7 @@ func cliPrintInstruction(address uint16) {
 }
 
 
-func cliRun(draw chan struct{}) {
+func cliRun(buzz chan struct{}, draw chan struct{}) {
     fmt.Println("Type \"h\" or \"help\" for commands usage")
 
     reader := bufio.NewReader(os.Stdin)
@@ -303,20 +303,21 @@ func cliRun(draw chan struct{}) {
                     stop <- struct{}{}
                 }
                 machineReset()
+                buzz <- struct{}{}
                 draw <- struct{}{}
 
             case "ru", "run":
                 if machineIsRunning() {
                     fmt.Printf("Machine is already running.\n")
                 } else {
-                    go machineRun(draw, stop)
+                    go machineRun(buzz, draw, stop)
                 }
 
             case "s", "step":
                 if machineIsRunning() {
                     fmt.Printf("Machine is running, cannot step it.\n")
                 } else {
-                    machineStep(draw)
+                    machineStep(buzz, draw)
                 }
 
             default:

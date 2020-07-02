@@ -11,6 +11,7 @@
 ## LibSDL
 - http://lazyfoo.net/tutorials/SDL/index.php
 - https://godoc.org/github.com/veandco/go-sdl2/sdl
+- https://github.com/fiorix/cat-o-licious (another app built with golang and libsdl)
 
 # Environment
 Add $GOPATH/bin to the PATH:
@@ -38,7 +39,13 @@ go get -v github.com/veandco/go-sdl2/sdl
 - [](https://johnearnest.github.io/Octo/)
 
 
+# ROMs
+You can get ROMs [here](https://github.com/dmatlack/chip8/tree/master/roms).
+
 # Run the emulator
+```
+go run cli.go io.go machine.go main.go ~/Documents/Geek/Projects/go/Pong\ \[Paul\ Vervalin\,\ 1990\].ch8
+```
 
 # Emulation speed
 https://www.reddit.com/r/EmuDev/comments/9hx3ry/how_to_do_timing/
@@ -52,7 +59,29 @@ When interrupted, pressing “i” again or clicking the “continue” icon wil
 
 Breakpoints can also be placed in source code by using the command :breakpoint followed by a name- the name will be shown when the breakpoint is encountered so that multiple breakpoints can be readily distinguished. :breakpoint is an out-of-band debugging facility and inserting a breakpoint into your program will not add any code or modify any Chip8 registers.
 
+# Keyboard
+The computers which originally used the Chip-8 Language had a 16-key hexadecimal keypad with the following layout:
+```
+1 2 3 C
+4 5 6 D
+7 8 9 E
+A 0 B F
+```
+
+This layout is mapped to the following keys (qwerty keyboard):
+```
+1 2 3 4
+q w e r
+a s d f
+z x c v
+```
+
 # TODO
-- rename all functions so that the name identifies which file they're in, i.e. runMachine() to machineRun()
 - add exceptions where needed:
   - typically machineDeleteBreakpoint should return an error if the breakpoint id is not valid
+- try out other roms: tetris and space invaders
+- improve disassembly:
+  - parse binary to check which memory locations are sprites
+  - add cli command to display sprites
+- fix packaging, try on other platforms
+- implement sound

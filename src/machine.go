@@ -104,6 +104,7 @@ type registers struct {
 type machine struct {
     breakpoints []uint16
     cycles      byte
+    keyboard    [16]bool
     pixmap      [SCREENWIDTH][SCREENHEIGHT]uint8
     memory      [4096]byte
     regs        registers
@@ -322,10 +323,19 @@ func machineListBreakpoints() []uint16{
 }
 
 
-func machineReset() {
-    for i, _ := range m.regs.v {
-        m.regs.v[i] = 0
+func machinePlaySound() bool {
+    if m.regs.st > 0 {
+        return true
     }
+    return false
+}
+
+
+func machineReset() {
+    for i, _ := range m.keyboard {
+        m.keyboard[i] = false
+    }
+
 	m.regs.i = 0
 	m.regs.dt = 0
 	m.regs.st = 0
@@ -344,7 +354,7 @@ func machineReset() {
 }
 
 
-func machineRun(draw chan struct{}, stop chan struct{}) {
+func machineRun(buzz chan struct{}, draw chan struct{}, stop chan struct{}) {
     m.running = true
     for {
         for i := m.cycles; i < 9; i++ {
@@ -364,14 +374,14 @@ func machineRun(draw chan struct{}, stop chan struct{}) {
                 return
             }
 
-            machineStep(draw)
+            machineStep(buzz, draw)
         }
         time.Sleep(SLEEPTIME)
     }
 }
 
 
-func machineStep(draw chan struct{}) {
+func machineStep(buzz chan struct{}, draw chan struct{}) {
     incrementPC := true
     instruction := machineDisassembleInstruction(machineGetInstruction(m.regs.pc))
 
@@ -515,23 +525,34 @@ func machineStep(draw chan struct{}) {
         }
 
     case instruction.op == skp:
-        // TODO: implement me!
+        if m.keyboard[m.regs.v[instruction.x]] {
+            m.regs.pc += 2
+        }
 
     case instruction.op == sknp:
-        // FIXME: we don't read inputs yet, so next intruction is always skipped
-        m.regs.pc += 2
+        if ! m.keyboard[m.regs.v[instruction.x]] {
+            m.regs.pc += 2
+        }
 
     case instruction.op == gett:
         m.regs.v[instruction.x] = m.regs.dt
 
     case instruction.op == ldk:
-        // TODO: implement me!
+        for {
+            for i, _ := range m.keyboard {
+                if m.keyboard[i] {
+                    m.regs.v[instruction.x] = byte(i)
+                    break
+                }
+            }
+            time.Sleep(1000000)
+        }
 
     case instruction.op == sett:
         m.regs.dt = m.regs.v[instruction.x]
 
     case instruction.op == lds:
-        m.regs.st = instruction.x
+        m.regs.st = m.regs.v[instruction.x]
 
     case instruction.op == addi:
         m.regs.i = m.regs.i + uint16(m.regs.v[instruction.x])
@@ -547,12 +568,12 @@ func machineStep(draw chan struct{}) {
         m.memory[m.regs.i + 2] = n
 
     case instruction.op == save:
-        for j := uint16(0); j < uint16(instruction.x); j++ {
+        for j := uint16(0); j <= uint16(instruction.x); j++ {
             m.memory[m.regs.i + j] = m.regs.v[j]
         }
 
     case instruction.op == restore:
-        for j := uint16(0); j < uint16(instruction.x); j++ {
+        for j := uint16(0); j <= uint16(instruction.x); j++ {
             m.regs.v[j] = m.memory[m.regs.i + j]
         }
     }
@@ -570,6 +591,11 @@ func machineStep(draw chan struct{}) {
 	        m.regs.st--
 	    }
         m.cycles = 0
+        buzz <- struct{}{}
         draw <- struct{}{}
     }
+}
+
+func machineUpdateKeyboard(key byte, state bool) {
+    m.keyboard[key] = state
 }
