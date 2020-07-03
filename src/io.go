@@ -4,7 +4,6 @@ package main
 // void SineWave(void *userdata, Uint8 *stream, int len);
 import "C"
 import (
-    "fmt"
     "github.com/veandco/go-sdl2/sdl"
     "log"
     "math"
@@ -98,7 +97,7 @@ func ioRedrawDisplay() {
 func ioRunBuzzer(buzz chan struct{}) {
     for {
         <-buzz
-        fmt.Printf("buzzer is alive: %d %t\n", m.regs.st, m.running)
+        //fmt.Printf("buzzer is alive: %d %t\n", m.regs.st, m.running)
         if machinePlaySound() && machineIsRunning() {
             sdl.PauseAudio(false)
         } else {
