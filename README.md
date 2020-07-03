@@ -1,3 +1,18 @@
+CHIP-8 emulator written in Golang with libsdl.
+
+# Current status
+- pong works
+- untested with other roms
+- sound is buggy/crappy
+ 
+## todo
+- try out with other roms
+- fix sound
+- add proper error handling where needed
+- fix packaging and try on other platforms
+- implement cli command history
+- improve disassembly by parsing the binary to check which memory locations are used for sprites
+
 # Resources
 ## Go
 - [The Go wiki] (https://github.com/golang/go/wiki)
@@ -6,18 +21,26 @@
 - [How to write Go code](https://golang.org/doc/code.html)
 - [Effective Go](https://golang.org/doc/effective_go.html)
 - [Packages](https://golang.org/pkg/)
-- https://sj14.gitlab.io/post/2018-07-01-go-unix-shell/
+- [Writing a simple shell in Go](https://sj14.gitlab.io/post/2018-07-01-go-unix-shell/)
 
 ## LibSDL
-- http://lazyfoo.net/tutorials/SDL/index.php
-- https://godoc.org/github.com/veandco/go-sdl2/sdl
-- https://github.com/fiorix/cat-o-licious (another app built with golang and libsdl)
+- [Beginning Game Programming v2.0](http://lazyfoo.net/tutorials/SDL/index.php)
+- [GoDoc - Package SDL](https://godoc.org/github.com/veandco/go-sdl2/sdl)
+- [Another app built with golang and libsdl](https://github.com/fiorix/cat-o-licious)
 
-# Environment
-Add $GOPATH/bin to the PATH:
-```
-PATH="$PATH:$(go env GOPATH)/bin"
-```
+# Emulator
+- [BUILDING 8-BIT EMULATOR IN GOLANG](https://engineering.wpengine.com/building-8-bit-emulator-in-golang/)
+- [CHIP-8](https://en.wikipedia.org/wiki/CHIP-8)
+- [BYTE magazine, December 1978, An Easy Programming System](https://archive.org/details/byte-magazine-1978-12/page/n109)
+- [How to write an emulator (CHIP-8 interpreter)](http://www.multigesture.net/articles/how-to-write-an-emulator-chip-8-interpreter/)
+- [Cowgod's Chip-8 Technical Reference v1.0](http://devernay.free.fr/hacks/chip8/C8TECH10.HTM)
+- [Mastering Chip-8](http://mattmik.com/files/chip8/mastering/chip8.html)
+- [Assembler and Emulator in Go](https://massung.github.io/CHIP-8/)
+- [CHIP-8 emulatoar](https://colineberhardt.github.io/wasm-rust-chip8/web/)
+- [Octo is a high level assembler, disassembler and simulator for Chip8](https://johnearnest.github.io/Octo/)
+
+# ROMs
+You can get ROMs [here](https://github.com/dmatlack/chip8/tree/master/roms).
 
 # Requirements
 Install libsdl2:
@@ -25,22 +48,6 @@ Install libsdl2:
 sudo apt install libsdl2-dev
 go get -v github.com/veandco/go-sdl2/sdl
 ```
-
-# Emulator
-- [BUILDING 8-BIT EMULATOR IN GOLANG](https://engineering.wpengine.com/building-8-bit-emulator-in-golang/)
-- [CHIP-8](https://en.wikipedia.org/wiki/CHIP-8)
-- [BYTE magazine, December 1978, An Easy Programming System](https://archive.org/details/byte-magazine-1978-12/page/n109)
-- [How to write an emulator (CHIP-8 interpreter)](http://www.multigesture.net/articles/how-to-write-an-emulator-chip-8-interpreter/)
-- https://github.com/dmatlack/chip8/tree/master/roms
-- [Cowgod's Chip-8 Technical Reference v1.0](http://devernay.free.fr/hacks/chip8/C8TECH10.HTM)
-- [Mastering Chip-8](http://mattmik.com/files/chip8/mastering/chip8.html)
-- [Assembler and Emulator in Go](https://massung.github.io/CHIP-8/)
-- [](https://colineberhardt.github.io/wasm-rust-chip8/web/)
-- [](https://johnearnest.github.io/Octo/)
-
-
-# ROMs
-You can get ROMs [here](https://github.com/dmatlack/chip8/tree/master/roms).
 
 # Run the emulator
 ```
@@ -75,13 +82,3 @@ q w e r
 a s d f
 z x c v
 ```
-
-# TODO
-- add exceptions where needed:
-  - typically machineDeleteBreakpoint should return an error if the breakpoint id is not valid
-- try out other roms: tetris and space invaders
-- improve disassembly:
-  - parse binary to check which memory locations are sprites
-  - add cli command to display sprites
-- fix packaging, try on other platforms
-- implement sound
