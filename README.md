@@ -15,7 +15,7 @@ CHIP-8 emulator written in Golang with libsdl.
 
 # Resources
 ## Go
-- [The Go wiki] (https://github.com/golang/go/wiki)
+- [The Go wiki](https://github.com/golang/go/wiki)
 - [Awesome Go](https://awesome-go.com/)
 - [The Go Tour](http://tour.golang.org/)
 - [How to write Go code](https://golang.org/doc/code.html)
